@@ -1,0 +1,194 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+plot(cars)
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).
+
+
+```{r}
+library(dplyr)
+library(googlesheets)
+library(MASS)
+suppressPackageStartupMessages(library("dplyr"))
+
+data_url = "https://docs.google.com/spreadsheets/d/1tNdNWmVF6KZc0GXuCxw8f97ARVf3WqjGK6f3RYBwB8s/edit#gid=0"
+postexperimentdata = gs_url(data_url, visibility = "private")
+mmi_data_url = "https://docs.google.com/spreadsheets/d/1OXufVhfgXvTfRk0gUmp3Yl-mZjEYBFQRYM8rAKCvXAk/edit#gid=1114422606"
+mmi_data = gs_url(mmi_data_url, visibility = "private")
+mmi_data = gs_read(mmi_data)
+View(mmi_data)
+postexperimentdata = gs_read(postexperimentdata)
+#Renaming all of the columns 
+names(postexperimentdata)[1] <-"subid"
+names(postexperimentdata)[2] <- "alertness_dur_eeg_task"
+names(postexperimentdata)[3] <- "alertness_dur_memtest"
+names(postexperimentdata)[4] <- "alertness_dur_blue_red_line_task"
+names(postexperimentdata)[5] <- "alertness_dur_questionnaire"
+names(postexperimentdata)[6] <- "difficulty_eeg_test"
+names(postexperimentdata)[7] <- "difficulty_memtest"
+names(postexperimentdata)[8] <- "difficulty_blue_red_line_task"
+names(postexperimentdata)[9] <- "questionnaire_difficulty"
+names(postexperimentdata)[10] <- "anticipate_memtest"
+names(postexperimentdata)[11] <- "specific_strat_used"
+names(postexperimentdata)[12] <- "general_feel_dur_experiment"
+names(postexperimentdata)[13] <- "distracted"
+names(postexperimentdata)[14] <- "daydream"
+names(postexperimentdata)[15] <- "hours_sleep_ln"
+names(postexperimentdata)[16] <- "hours_sleep_usual"
+names(postexperimentdata)[17] <- "other_info"
+
+postexperimentdata <- mutate(postexperimentdata, subid = as.numeric(subid))
+postexperimentdata <- mutate(postexperimentdata, daydream = recode(daydream, Yes = 1, No = 0))
+postexperimentdata <- mutate(postexperimentdata, distracted = recode(distracted, Yes = 1, No = 0))
+#cols_distracted_daydream <- select(postexperimentdata, distracted, daydream)
+df_mem_rates <- mutate(df_mem_rates, subid = as.numeric(subid))
+
+#postexperimentdata <- mutate(postexperimentdata, hours_sleep_usual = as.numeric(hours_sleep_usual, regex(^~))
+
+                             #case_when (
+                             #  hours_sleep_usual
+                            # )
+                             
+                                                          
+#str_detect(hours_sleep_usual, "^~")                            
+                             
+postexperimentdata <- mutate(postexperimentdata, hours_sleep_usual = as.numeric(hours_sleep_usual))
+postexperimentdata <- mutate(postexperimentdata, hours_sleep_ln = as.numeric(hours_sleep_ln))
+
+postexperimentdata <- mutate(postexperimentdata, sleep_diff = hours_sleep_usual - hours_sleep_ln)
+
+
+postexperimentdata <- left_join(postexperimentdata, mmi_data, "subid")
+#postexperimentdata <- left_join(postexperimentdata, df_mem_rates, "subid")
+View(postexperimentdata)
+
+#Mutates the data so that HMM is 0, and LMM is 1
+#postexperimentdata <- mutate(postexperimentdata, group = recode(group, HMM = 0, LMM = 1, MMM = 2))
+
+#Correlation test between distracted and daydream columns
+#cor.test(~ distracted + daydream, na.action = "na.exclude", data = postexperimentdata)
+
+lmm_data <- filter(postexperimentdata, group == "LMM")
+hmm_data <- filter(postexperimentdata, group == "HMM")
+
+lmm_distracted <- filter(lmm_data, distracted == 1)
+hmm_distracted <- filter(hmm_data, distracted == 1)
+
+#View(postexperimentdata)
+#View(lmm_data)
+#View(hmm_data)
+#View(lmm_distracted)
+#View(hmm_distracted)
+
+lmm_daydream <-filter(lmm_data, daydream == 1)
+hmm_daydream <-filter(hmm_data, daydream == 1)
+
+lmm_daydream_ratio = group_size(lmm_daydream) / group_size(lmm_data)
+hmm_daydream_ratio = group_size(hmm_daydream) / group_size(hmm_data)
+
+lmm_distracted_ratio = group_size(lmm_distracted) / group_size(lmm_data)
+hmm_distracted_ratio = group_size(hmm_distracted) / group_size(hmm_data)
+
+postexperimentdata_no_mmi <-filter(postexperimentdata, group == "LMM" | group == "HMM")
+postexperimentdata_no_mmi$group <- as.factor(postexperimentdata_no_mmi$group)
+postexperimentdata_no_mmi$distracted <- as.factor(postexperimentdata_no_mmi$distracted)
+
+
+#View(postexperimentdata_no_mmi)
+
+#print(lmm_daydream_ratio)
+
+#print(hmm_daydream_ratio)
+#print(lmm_distracted_ratio)
+#print(hmm_distracted_ratio)
+
+
+#View(postexperimentdata_no_mmi)
+#View(table(postexperimentdata_no_mmi$group, postexperimentdata_no_mmi$distracted))
+
+#View(table(postexperimentdata_no_mmi$group, postexperimentdata_no_mmi$daydream))
+daydream_matrix <- matrix(c(21, 17, 7, 11), nrow = 2)
+distracted_matrix <- matrix(c(14, 13, 14, 15), nrow=2)
+#View(daydream_matrix)
+#View(distracted_matrix)
+prop.test(distracted_matrix)
+prop.test(daydream_matrix, correct = F)
+
+
+#plotting data
+
+ggplot(data = df_mem_rates, mapping = aes(x = k, y = dprime)) + geom_point() + geom_smooth(method=lm)
+```
+```{r}
+#ggplot(data=postexperimentdata, aes(x=daydream, y=mmi, fill=daydream)) + geom_point(stat="identity") + 
+mean = mean_se(mmi)
+ggplot(data = postexperimentdata, mapping = aes(x = daydream, y = mmi)) + geom_jitter(width = .05, height = .05) + stat_summary(fun.y = "median", colour = "red", size = 2, geom = "point")
+
+
+```
+
+``` {r}
+ggplot(data=postexperimentdata, aes(x=distracted, y=mmi, fill=distracted)) + geom_bar(stat="identity")
+
+mean = mean_se(mmi)
+ggplot(data = postexperimentdata, mapping = aes(x = distracted, y = mmi)) + geom_jitter(width = .05, height = .05) + stat_summary(fun.y = "median", colour = "red", size = 2, geom = "point")
+
+
+
+
+# Map the time of day to different fill colors
+
+
+
+#View(Users/hhirshland/Downloads/n128_df_mem_rates.rda)
+
+#View(table(postexperimentdata_no_mmi$distracted, postexperimentdata_no_mmi$group, useNA = "no"))
+
+#View(xtabs(~group+distracted, postexperimentdata_no_mmi))
+#prop.test(table(postexperimentdata_no_mmi$group, postexperimentdata_no_mmi$distracted))
+
+
+```
+
+```{r}
+ggplot(data = postexperimentdata, mapping = aes(x = hours_sleep_usual, y = mmi)) + geom_point() + geom_smooth(method=lm) + stat_summary(fun.y = "median", colour = "red", size = 2, geom = "point")
+
+
+```
+
+```{r}
+ggplot(data = postexperimentdata, mapping = aes(x = hours_sleep_ln, y = mmi)) + geom_point() + geom_smooth(method=lm)
+
+```
+
+```{r}
+ggplot(data = postexperimentdata, mapping = aes(x = sleep_diff, y = mmi)) + geom_point() + geom_smooth(method=lm) + stat_summary(fun.y = "median", colour = "red", size = 2, geom = "point")
+
+```
+```{r}
+ggplot(data = postexperimentdata, mapping = aes(x = daydream, y = sleep_diff)) + geom_jitter(width = .05, height = .05) + stat_summary(fun.y = "median", colour = "red", size = 2, geom = "point")
+
+```
+
+```{r}
+ggplot(data = postexperimentdata, mapping = aes(x = distracted, y = sleep_diff)) + geom_jitter(width = .05, height = .05) + stat_summary(fun.y = "median", colour = "red", size = 2, geom = "point")
+
+```
+
+
+
+
+
+
